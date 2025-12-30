@@ -1,7 +1,3 @@
-C:\Users\carlo\Downloads\event-driven-full\lib-domain-router\src\main\java\br\com\libdomainrouter\domain\Event.java
-C:\Users\carlo\Downloads\event-driven-full\lib-domain-router\src\main\java\br\com\libdomainrouter\ports\DataQueryPort.java
-C:\Users\carlo\Downloads\event-driven-full\lib-domain-router\src\main\java\br\com\libdomainrouter\router\EventRouter.java
-C:\Users\carlo\Downloads\event-driven-full\lib-domain-router\src\main\java\br\com\libdomainrouter\router\strategies\EventStrategy.java
-C:\Users\carlo\Downloads\event-driven-full\lib-domain-router\src\main\java\br\com\libdomainrouter\router\strategies\impl\AggregateStrategy.java
-C:\Users\carlo\Downloads\event-driven-full\lib-domain-router\src\main\java\br\com\libdomainrouter\router\strategies\impl\StrategyA.java
-C:\Users\carlo\Downloads\event-driven-full\lib-domain-router\src\main\java\br\com\libdomainrouter\router\strategies\impl\StrategyB.java
+C:\Users\carlo\IdeaProjects\eventdrivenarchitecture\lib-router\src\main\java\br\com\libdomain\router\DefaultStrategySelector.java
+C:\Users\carlo\IdeaProjects\eventdrivenarchitecture\lib-router\src\main\java\br\com\libdomain\router\EventRouter.java
+C:\Users\carlo\IdeaProjects\eventdrivenarchitecture\lib-router\src\main\java\br\com\libdomain\router\StrategySelector.java

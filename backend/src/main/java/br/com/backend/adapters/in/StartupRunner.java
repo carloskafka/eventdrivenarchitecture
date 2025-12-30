@@ -1,12 +1,9 @@
 package br.com.backend.adapters.in;
 
 import br.com.backend.support.TestEventFactory;
-import br.com.libdomain.model.Event;
 import br.com.libdomain.router.EventRouter;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
-
-import java.util.Map;
 
 @Component
 public class StartupRunner implements CommandLineRunner {

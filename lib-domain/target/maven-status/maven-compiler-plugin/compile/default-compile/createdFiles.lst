@@ -1,7 +1,3 @@
-br\com\libdomainrouter\router\strategies\EventStrategy.class
-br\com\libdomainrouter\router\strategies\impl\StrategyA.class
-br\com\libdomainrouter\domain\Event.class
-br\com\libdomainrouter\router\EventRouter.class
-br\com\libdomainrouter\ports\DataQueryPort.class
-br\com\libdomainrouter\router\strategies\impl\AggregateStrategy.class
-br\com\libdomainrouter\router\strategies\impl\StrategyB.class
+br\com\libdomain\ports\RepositoryPort.class
+br\com\libdomain\strategy\EventStrategy.class
+br\com\libdomain\model\Event.class

@@ -7,9 +7,9 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="lib-domain" />
-        <module name="backend" />
         <module name="lib-domain-router" />
         <module name="lib-domain-router (1)" />
+        <module name="backend" />
         <module name="lib-integration" />
       </profile>
     </annotationProcessing>
