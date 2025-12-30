@@ -1,0 +1,3 @@
+br\com\backend\Application.class
+br\com\backend\StartupRunner.class
+br\com\backend\DomainConfig.class
