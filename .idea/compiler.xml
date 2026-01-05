@@ -11,6 +11,7 @@
         <module name="lib-domain-router (1)" />
         <module name="backend" />
         <module name="lib-integration" />
+        <module name="lib-router" />
       </profile>
     </annotationProcessing>
   </component>

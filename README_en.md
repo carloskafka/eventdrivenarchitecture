@@ -17,7 +17,6 @@ Table of Contents
 - How to build
 - How to run (development / production)
 - Main classes and flow
-- CI / CD
 - Contributing / Next steps
 
 Overview
@@ -101,10 +100,6 @@ Main classes and flow
 - `br.com.backend.adapters.out.PaymentRepositoryInMemory` (backend): in-memory repository that simulates optimistic version control.
 - `br.com.backend.adapters.in.StartupRunner` (backend): runs demonstration scenarios at startup.
 
-CI / CD
-
-See the CI/CD documentation: `CI_CD.md` for details on how the GitHub Actions workflow is configured and how to trigger and validate CI and CD runs.
-
 Technical notes
 
 - Idempotency is handled at the aggregate (`Payment`) level (it tracks processed event IDs). There's also a simplified version control (`version`) simulated by `PaymentRepositoryInMemory` to illustrate optimistic locking conflicts.
@@ -131,9 +126,13 @@ This repository is an example and does not include an explicit license (add a LI
 Contact / Questions
 
 If you want, I can also:
+- generate an English README (this file) — done;
 - add a `LICENSE` (suggestions: MIT, Apache-2.0);
 - create example unit/integration tests (JUnit + Testcontainers) for the `StartupRunner` scenarios;
 - prepare CI scripts (GitHub Actions) for building the multi-module project and publishing artifacts.
 
 Tell me which of the above you'd like next and I'll implement it.
 
+# README_en.md (deprecated)
+
+This file has been replaced by `README.md` in English. Please refer to `README.md` at the repository root for the canonical documentation.

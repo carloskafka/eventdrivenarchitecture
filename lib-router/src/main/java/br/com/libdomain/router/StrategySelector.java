@@ -5,7 +5,9 @@ import br.com.libdomain.strategy.EventStrategy;
 
 import java.util.List;
 
+/**
+ * Seleciona estratégias apropriadas para um evento específico.
+ */
 public interface StrategySelector {
-    EventStrategy select(Event event);
     List<EventStrategy> selectAll(Event event);
 }

@@ -1,4 +1,3 @@
-
 package br.com.backend.strategy;
 
 import br.com.backend.model.payment.Payment;
@@ -24,18 +23,18 @@ public class PaymentApprovedStrategy implements EventStrategy {
     public void execute(Event event) {
         String paymentId = (String) event.payload().get("paymentId");
 
-        // Recupera agregado
+        // Retrieve aggregate
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseGet(() -> new Payment(paymentId, PaymentStatus.CREATED));
 
-        // Aplica evento (idempotente + transição de estado)
-        boolean applied = payment.applyEvent(event.eventId(), PaymentStatus.APPROVED);
+        // Apply event (idempotent + state transition)
+        boolean applied = payment.applyEvent(event.eventId(), PaymentStatus.AUTHORIZED);
 
         if (applied) {
-            paymentRepository.save(payment); // persiste alterações
-            System.out.println("Pagamento aprovado: " + paymentId);
+            paymentRepository.save(payment); // persist changes
+            System.out.println("Payment approved: " + paymentId);
         } else {
-            System.out.println("Evento ignorado (duplicado ou transição inválida): " + paymentId);
+            System.out.println("Event ignored (duplicate or invalid transition): " + paymentId);
         }
     }
 }

@@ -4,6 +4,9 @@ import br.com.libdomain.model.Event;
 
 import java.util.Map;
 
+/**
+ * Factory class to create test events for various scenarios.
+ */
 public class TestEventFactory {
 
     public static Event orderCreated(String orderId) {

@@ -6,12 +6,20 @@ import br.com.libdomain.strategy.EventStrategy;
 
 import java.util.List;
 
+/**
+ * Roteador de eventos que direciona eventos para as estratégias apropriadas.
+ * Utiliza um StrategySelector para determinar quais estratégias devem ser aplicadas a cada evento.
+ */
 public class EventRouter {
 
     private final StrategySelector selector;
 
     public EventRouter(StrategySelector selector) {
         this.selector = selector;
+    }
+
+    public void route(List<Event> events) {
+        events.forEach(this::route);
     }
 
     public void route(Event event) {

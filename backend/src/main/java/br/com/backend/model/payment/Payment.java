@@ -4,39 +4,80 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
+/**
+ * Payment entity with business logic to apply events in an idempotent manner
+ * and validate state transitions.
+ */
 public class Payment {
 
     private final String paymentId;
     private PaymentStatus status;
+    private long version;
+
     private final Set<String> processedEventIds = new HashSet<>();
 
     public Payment(String paymentId, PaymentStatus initialStatus) {
         this.paymentId = paymentId;
         this.status = initialStatus;
+        this.version = 0;
     }
 
-    public synchronized boolean applyEvent(UUID eventId, PaymentStatus targetStatus) {
-        // Idempotência
+    /**
+     * Applies an event idempotently and validates the state transition.
+     * NOTE: this method does NOT handle concurrency control.
+     */
+    public boolean applyEvent(UUID eventId, PaymentStatus targetStatus) {
+
+        // Idempotency
         if (processedEventIds.contains(eventId.toString())) {
-            return false; // evento já processado
+            return false;
         }
 
-        // Regra de transição de estado
+        // State transition rule
         if (!status.canTransitionTo(targetStatus)) {
-            return false; // transição inválida
+            return false;
         }
 
-        // Aplica alteração
+        // Apply change
         this.status = targetStatus;
-        processedEventIds.add(eventId.toString());
+        this.processedEventIds.add(eventId.toString());
         return true;
+    }
+
+    /* ========= getters ========= */
+
+    public String getPaymentId() {
+        return paymentId;
     }
 
     public PaymentStatus getStatus() {
         return status;
     }
 
-    public String getPaymentId() {
-        return paymentId;
+    public long getVersion() {
+        return version;
+    }
+
+    /* ========= infrastructure methods ========= */
+
+    public void incrementVersion() {
+        this.version++;
+    }
+
+    /**
+     * Used by the repository to ensure isolation.
+     */
+    public Set<String> getProcessedEventIds() {
+        return new HashSet<>(processedEventIds);
+    }
+
+    /**
+     * Copy factory to simulate detach (as JPA would do).
+     */
+    public Payment copy() {
+        Payment copy = new Payment(this.paymentId, this.status);
+        copy.version = this.version;
+        copy.processedEventIds.addAll(this.processedEventIds);
+        return copy;
     }
 }

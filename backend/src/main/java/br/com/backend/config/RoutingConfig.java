@@ -9,6 +9,9 @@ import org.springframework.context.annotation.Configuration;
 
 import java.util.List;
 
+/**
+ * Configuration class for setting up the event routing mechanism.
+ */
 @Configuration
 public class RoutingConfig {
 
