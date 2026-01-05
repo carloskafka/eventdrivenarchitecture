@@ -31,7 +31,8 @@ Replace `OWNER/REPO` accordingly or keep the CI altDeploymentRepository approach
 Troubleshooting
 
 - If deploy fails with "repository element was not specified", ensure the CI uses `-DaltDeploymentRepository` (our workflow does) or add `distributionManagement` to the POM.
-- Ensure `GITHUB_TOKEN` has `packages: write` permission (the workflow sets permissions: packages: write). For third-party registries, configure secrets and server credentials accordingly.
+- Ensure `GITHUB_TOKEN` has `packages: write` permission (the workflow sets permissions: packages: write). In some cases GitHub's automatically provided `GITHUB_TOKEN` may be rejected by GitHub Packages for package deployment (401). In that case create a Personal Access Token (PAT) with the following scopes: `repo` (or `public_repo` for public repos) and `packages`, and add it to the repository secrets as `PACKAGES_TOKEN`.
+- For third-party registries, configure secrets and server credentials accordingly.
 
 ```powershell
 # Example: run locally (you'll need a token with repo:packages permissions)

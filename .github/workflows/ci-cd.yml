@@ -64,7 +64,9 @@ jobs:
           java-version: '21'
           server-id: github
           server-username: ${{ github.actor }}
-          server-password: ${{ secrets.GITHUB_TOKEN }}
+          # Prefer a personal access token stored in PACKAGES_TOKEN (recommended).
+          # Falls back to the automatically provided GITHUB_TOKEN if PACKAGES_TOKEN is not set.
+          server-password: ${{ secrets.PACKAGES_TOKEN != '' && secrets.PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
           cache: maven
 
       - name: Cache Maven local repository
