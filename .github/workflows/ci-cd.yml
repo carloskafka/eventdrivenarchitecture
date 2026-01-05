@@ -78,7 +78,9 @@ jobs:
       - name: Deploy artifacts to GitHub Packages
         env:
           MAVEN_OPTS: -Xmx2g
-        run: mvn -B -ntp -T 1C clean deploy -DskipTests -Dgpg.skip=true
+        run: |
+          echo "Deploying to GitHub Packages using altDeploymentRepository"
+          mvn -B -ntp -T 1C clean deploy -DskipTests -Dgpg.skip=true -DaltDeploymentRepository=github::default::https://maven.pkg.github.com/$GITHUB_REPOSITORY
 
   release:
     name: Create GitHub Release and upload backend JAR
@@ -115,4 +117,3 @@ jobs:
           files: backend/target/backend-1.0.0-SNAPSHOT.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
