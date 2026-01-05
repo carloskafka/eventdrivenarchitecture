@@ -3,7 +3,9 @@ package br.com.backend;
 import br.com.backend.adapters.out.PaymentRepository;
 import br.com.backend.application.usecases.ProcessPaymentEventUseCase;
 import br.com.backend.model.payment.PaymentStatus;
+import br.com.backend.util.AutoCloseableExecutor;
 import jakarta.persistence.OptimisticLockException;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -13,9 +15,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -33,13 +33,15 @@ public class StartupRunnerScenariosTest {
     }
 
     @Test
+    @DisplayName("Scenario 1 — Concurrent same event (two threads)")
     public void scenario1_concurrentSameEvent() throws Exception {
         String paymentId = "test-payment-1";
         UUID eventId = UUID.randomUUID();
 
-        ExecutorService executor = Executors.newFixedThreadPool(2);
-        CountDownLatch startLatch = new CountDownLatch(1);
-        try {
+        try (AutoCloseableExecutor ace = new AutoCloseableExecutor(2)) {
+            ExecutorService executor = ace.executor();
+            CountDownLatch startLatch = new CountDownLatch(1);
+
             Callable<Void> task = () -> {
                 startLatch.await();
                 useCase.execute(eventId, paymentId, PaymentStatus.AUTHORIZED);
@@ -66,11 +68,6 @@ public class StartupRunnerScenariosTest {
                     throw e;
                 }
             }
-
-        } finally {
-            executor.shutdown();
-            boolean terminated = executor.awaitTermination(5, TimeUnit.SECONDS);
-            assertTrue(terminated, "Executor did not terminate in time");
         }
 
         var opt = repository.findById(paymentId);
@@ -80,6 +77,7 @@ public class StartupRunnerScenariosTest {
     }
 
     @Test
+    @DisplayName("Scenario 2 — Idempotent replay of the same event")
     public void scenario2_idempotentReplay() {
         String paymentId = "test-payment-2";
         UUID eventId = UUID.randomUUID();
@@ -94,6 +92,7 @@ public class StartupRunnerScenariosTest {
     }
 
     @Test
+    @DisplayName("Scenario 3 — Out of order events: APPROVED before AUTHORIZED")
     public void scenario3_outOfOrderEvent() {
         String paymentId = "test-payment-3";
 
@@ -108,12 +107,14 @@ public class StartupRunnerScenariosTest {
     }
 
     @Test
+    @DisplayName("Scenario 4 — Concurrent different events: AUTHORIZED vs FAILED")
     public void scenario4_concurrentDifferentEvents() throws Exception {
         String paymentId = "test-payment-4";
 
-        ExecutorService executor = Executors.newFixedThreadPool(2);
-        CountDownLatch startLatch = new CountDownLatch(1);
-        try {
+        try (AutoCloseableExecutor ace = new AutoCloseableExecutor(2)) {
+            ExecutorService executor = ace.executor();
+            CountDownLatch startLatch = new CountDownLatch(1);
+
             Callable<Void> authorize = () -> {
                 startLatch.await();
                 useCase.execute(UUID.randomUUID(), paymentId, PaymentStatus.AUTHORIZED);
@@ -143,11 +144,6 @@ public class StartupRunnerScenariosTest {
                     throw e;
                 }
             }
-
-        } finally {
-            executor.shutdown();
-            boolean terminated = executor.awaitTermination(5, TimeUnit.SECONDS);
-            assertTrue(terminated, "Executor did not terminate in time");
         }
 
         var opt = repository.findById(paymentId);

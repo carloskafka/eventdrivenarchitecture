@@ -1,8 +1,13 @@
 package br.com.backend.adapters.in;
 
+import br.com.backend.adapters.out.OrderRepository;
 import br.com.backend.adapters.out.PaymentRepository;
+import br.com.backend.adapters.out.StockRepository;
 import br.com.backend.application.usecases.ProcessPaymentEventUseCase;
+import br.com.backend.model.order.Order;
+import br.com.backend.model.order.OrderStatus;
 import br.com.backend.model.payment.PaymentStatus;
+import br.com.backend.model.stock.Stock;
 import jakarta.persistence.OptimisticLockException;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -21,13 +26,19 @@ public class StartupRunner implements ApplicationRunner {
 
     private final ProcessPaymentEventUseCase useCase;
     private final PaymentRepository repository;
+    private final OrderRepository orderRepository;
+    private final StockRepository stockRepository;
 
     public StartupRunner(
             ProcessPaymentEventUseCase useCase,
-            PaymentRepository repository
+            PaymentRepository repository,
+            OrderRepository orderRepository,
+            StockRepository stockRepository
     ) {
         this.useCase = useCase;
         this.repository = repository;
+        this.orderRepository = orderRepository;
+        this.stockRepository = stockRepository;
     }
 
     @Override
@@ -37,6 +48,11 @@ public class StartupRunner implements ApplicationRunner {
         scenario2_idempotentReplay();
         scenario3_outOfOrderEvent();
         scenario4_concurrentDifferentEvents();
+
+        // New scenarios
+        scenario5_paymentThenOrderThenStock();
+        scenario6_reserveThenCancelReleasesStock();
+        scenario7_orderLifecycle();
     }
 
     /* =======================================================
@@ -50,20 +66,27 @@ public class StartupRunner implements ApplicationRunner {
 
         ExecutorService executor = Executors.newFixedThreadPool(2);
 
-        Runnable task = () -> {
-            try {
-                useCase.execute(eventId, paymentId, PaymentStatus.AUTHORIZED);
-                System.out.println(Thread.currentThread().getName() + " SUCCESS");
-            } catch (OptimisticLockException e) {
-                System.out.println(Thread.currentThread().getName() + " CONFLICT");
+        try {
+            Runnable task = () -> {
+                try {
+                    useCase.execute(eventId, paymentId, PaymentStatus.AUTHORIZED);
+                    System.out.println(Thread.currentThread().getName() + " SUCCESS");
+                } catch (OptimisticLockException e) {
+                    System.out.println(Thread.currentThread().getName() + " CONFLICT");
+                }
+            };
+
+            executor.submit(task);
+            executor.submit(task);
+
+        } finally {
+            executor.shutdown();
+            boolean terminated = executor.awaitTermination(5, TimeUnit.SECONDS);
+            if (!terminated) {
+                System.out.println("Executor did not terminate in time, forcing shutdown");
+                executor.shutdownNow();
             }
-        };
-
-        executor.submit(task);
-        executor.submit(task);
-
-        executor.shutdown();
-        executor.awaitTermination(5, TimeUnit.SECONDS);
+        }
 
         logFinalState(paymentId);
     }
@@ -109,43 +132,151 @@ public class StartupRunner implements ApplicationRunner {
 
         ExecutorService executor = Executors.newFixedThreadPool(2);
 
-        Runnable authorize = () -> {
-            try {
-                useCase.execute(
-                        UUID.randomUUID(),
-                        paymentId,
-                        PaymentStatus.AUTHORIZED
-                );
-                System.out.println("AUTHORIZE SUCCESS");
-            } catch (OptimisticLockException e) {
-                System.out.println("AUTHORIZE CONFLICT");
+        try {
+            Runnable authorize = () -> {
+                try {
+                    useCase.execute(
+                            UUID.randomUUID(),
+                            paymentId,
+                            PaymentStatus.AUTHORIZED
+                    );
+                    System.out.println("AUTHORIZE SUCCESS");
+                } catch (OptimisticLockException e) {
+                    System.out.println("AUTHORIZE CONFLICT");
+                }
+            };
+
+            Runnable fail = () -> {
+                try {
+                    useCase.execute(
+                            UUID.randomUUID(),
+                            paymentId,
+                            PaymentStatus.FAILED
+                    );
+                    System.out.println("FAIL SUCCESS");
+                } catch (OptimisticLockException e) {
+                    System.out.println("FAIL CONFLICT");
+                }
+            };
+
+            executor.submit(authorize);
+            executor.submit(fail);
+
+        } finally {
+            executor.shutdown();
+            boolean terminated = executor.awaitTermination(5, TimeUnit.SECONDS);
+            if (!terminated) {
+                System.out.println("Executor did not terminate in time, forcing shutdown");
+                executor.shutdownNow();
             }
-        };
-
-        Runnable fail = () -> {
-            try {
-                useCase.execute(
-                        UUID.randomUUID(),
-                        paymentId,
-                        PaymentStatus.FAILED
-                );
-                System.out.println("FAIL SUCCESS");
-            } catch (OptimisticLockException e) {
-                System.out.println("FAIL CONFLICT");
-            }
-        };
-
-        executor.submit(authorize);
-        executor.submit(fail);
-
-        executor.shutdown();
-        executor.awaitTermination(5, TimeUnit.SECONDS);
+        }
 
         logFinalState(paymentId);
     }
 
     /* =======================================================
-       FINAL LOG
+       SCENARIO 5 — Payment then Order then Stock reservation
+       ======================================================= */
+    private void scenario5_paymentThenOrderThenStock() {
+        System.out.println("=== SCENARIO 5: PAYMENT -> ORDER -> STOCK ===");
+
+        String paymentId = "payment-5";
+        String orderId = "order-5";
+        String productId = "prod-5";
+
+        // initial stock
+        stockRepository.save(new Stock(productId, 10));
+
+        // payment
+        useCase.execute(UUID.randomUUID(), paymentId, PaymentStatus.AUTHORIZED);
+
+        // create order and confirm
+        Order order = new Order(orderId);
+        order.addItem(productId, 2);
+        order.applyStatus(OrderStatus.CONFIRMED);
+        orderRepository.save(order);
+
+        // reserve stock
+        stockRepository.findById(productId).ifPresent(s -> {
+            boolean ok = s.reserve(2);
+            if (ok) {
+                stockRepository.save(s);
+                System.out.println("Stock reserved for order " + orderId);
+            } else {
+                System.out.println("Insufficient stock for order " + orderId);
+            }
+        });
+
+        logFinalState(paymentId);
+        logOrderState(orderId);
+        logStockState(productId);
+    }
+
+    /* =======================================================
+       SCENARIO 6 — Reserve then cancel releases stock
+       ======================================================= */
+    private void scenario6_reserveThenCancelReleasesStock() {
+        System.out.println("=== SCENARIO 6: RESERVE THEN CANCEL RELEASE ===");
+
+         String orderId = "order-6";
+         String productId = "prod-6";
+
+         stockRepository.save(new Stock(productId, 1));
+
+         // simulate order
+         Order order = new Order(orderId);
+         order.addItem(productId, 1);
+         order.applyStatus(OrderStatus.CONFIRMED);
+         orderRepository.save(order);
+
+         stockRepository.findById(productId).ifPresent(s -> {
+             boolean ok = s.reserve(1);
+             if (ok) {
+                 stockRepository.save(s);
+                 System.out.println("Reserved 1 unit for " + orderId);
+             }
+         });
+
+         // cancel order and release
+         order.applyStatus(OrderStatus.CANCELLED);
+         orderRepository.save(order);
+         stockRepository.findById(productId).ifPresent(s -> {
+             s.release(1);
+             stockRepository.save(s);
+             System.out.println("Released 1 unit for cancelled order " + orderId);
+         });
+
+         logOrderState(orderId);
+         logStockState(productId);
+     }
+
+    /* =======================================================
+       SCENARIO 7 — Order lifecycle
+       ======================================================= */
+    private void scenario7_orderLifecycle() {
+        System.out.println("=== SCENARIO 7: ORDER LIFECYCLE ===");
+
+        String orderId = "order-7";
+
+        Order order = new Order(orderId);
+        boolean added = order.addItem("prod-x", 1);
+        System.out.println("Add item to NEW order: " + added);
+
+        boolean confirmed = order.applyStatus(OrderStatus.CONFIRMED);
+        System.out.println("Confirm order: " + confirmed);
+
+        boolean shipped = order.applyStatus(OrderStatus.SHIPPED);
+        System.out.println("Ship order: " + shipped);
+
+        boolean addAfterShip = order.addItem("prod-x", 1);
+        System.out.println("Add item after shipped (should be false): " + addAfterShip);
+
+        orderRepository.save(order);
+        logOrderState(orderId);
+    }
+
+    /* =======================================================
+       LOG HELPERS
        ======================================================= */
     private void logFinalState(String paymentId) {
         repository.findById(paymentId).ifPresent(payment ->
@@ -154,6 +285,18 @@ public class StartupRunner implements ApplicationRunner {
                                 ", status=" + payment.getStatus() +
                                 ", version=" + payment.getVersion()
                 )
+        );
+    }
+
+    private void logOrderState(String orderId) {
+        orderRepository.findById(orderId).ifPresent(o ->
+                System.out.println("ORDER STATE -> id=" + orderId + ", status=" + o.getStatus())
+        );
+    }
+
+    private void logStockState(String productId) {
+        stockRepository.findById(productId).ifPresent(s ->
+                System.out.println("STOCK STATE -> product=" + productId + ", qty=" + s.getQuantity())
         );
     }
 }

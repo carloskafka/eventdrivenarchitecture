@@ -6,6 +6,7 @@ import br.com.backend.model.payment.PaymentStatus;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;
+import jakarta.persistence.OptimisticLockException;
 
 /**
  * Use case for processing payment events in an idempotent manner.
@@ -35,7 +36,27 @@ public class ProcessPaymentEventUseCase {
             return;
         }
 
-        repository.save(payment);
+        try {
+            repository.save(payment);
+        } catch (RuntimeException e) {
+            // Map repository-specific optimistic lock exceptions to Jakarta's OptimisticLockException
+            if (isOptimisticLockException(e)) {
+                throw new OptimisticLockException(e.getMessage());
+            }
+            throw e;
+        }
+    }
+
+    private boolean isOptimisticLockException(Throwable t) {
+        Throwable cur = t;
+        while (cur != null) {
+            String name = cur.getClass().getName();
+            if (name.contains("OptimisticLock") || name.contains("OptimisticLockingFailureException")) {
+                return true;
+            }
+            cur = cur.getCause();
+        }
+        return false;
     }
 
 }

@@ -8,7 +8,7 @@ public enum PaymentStatus {
     CREATED {
         @Override
         boolean canTransition(PaymentStatus target) {
-            return target == AUTHORIZED || target == FAILED;
+            return target == AUTHORIZED || target == FAILED || target == APPROVED;
         }
     },
     AUTHORIZED {
