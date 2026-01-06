@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: eda_zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - '2181:2181'
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: eda_kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - '29092:29092'
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:29092'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://localhost:29092'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+
+# Usage:
+# 1) Start Kafka and ZooKeeper:
+#    docker compose -f docker-compose.kafka.yml up -d
+#
+# 2) Verify the containers are running:
+#    docker ps
+#
+# 3) Create the topic (optional; auto-create is enabled above):
+#    docker exec -it eda_kafka kafka-topics --create --topic payment-events --bootstrap-server localhost:29092 --replication-factor 1 --partitions 1
+#
+# 4) Produce a test JSON message (from inside the kafka container):
+#    docker exec -it eda_kafka bash
+#    echo '{"eventId":"b3d9e7c2-1c2f-4b6d-8d2a-1a2b3c4d5e6f","paymentId":"test-payment-42","status":"AUTHORIZED"}' | kafka-console-producer --broker-list localhost:29092 --topic payment-events --property "parse.key=false" --property "key.separator=:"
+#
+# 5) Alternatively use kafkacat or a client on the host to produce messages to localhost:29092.
+#
+# Notes:
+# - This compose file exposes Kafka on host port 29092 which matches the application's default bootstrap server configuration.
+# - If you have firewall/WSL networking differences on Windows, ensure Docker is configured to allow localhost mapping to container ports.
+

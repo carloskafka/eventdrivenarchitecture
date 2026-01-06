@@ -1,1 +1,5 @@
-C:\Users\carlo\IdeaProjects\eventdrivenarchitecture\lib-integration\src\main\java\br\com\libintegration\adapters\out\JpaRepositoryAdapter.java
+C:\Users\carlo\IdeaProjects\eventdrivenarchitecture\lib-integration\src\main\java\br\com\libintegration\adapters\jpa\JpaRepositoryAdapter.java
+C:\Users\carlo\IdeaProjects\eventdrivenarchitecture\lib-integration\src\main\java\br\com\libintegration\adapters\kafka\IntegrationConfig.java
+C:\Users\carlo\IdeaProjects\eventdrivenarchitecture\lib-integration\src\main\java\br\com\libintegration\adapters\kafka\IntegrationProperties.java
+C:\Users\carlo\IdeaProjects\eventdrivenarchitecture\lib-integration\src\main\java\br\com\libintegration\adapters\kafka\KafkaInfrastructureConfig.java
+C:\Users\carlo\IdeaProjects\eventdrivenarchitecture\lib-integration\src\main\java\br\com\libintegration\adapters\kafka\KafkaSender.java

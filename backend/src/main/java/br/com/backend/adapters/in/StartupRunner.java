@@ -24,6 +24,13 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class StartupRunner implements ApplicationRunner {
 
+    // ANSI color codes for console (will be ignored on consoles that don't support ANSI)
+    private static final String ANSI_RESET = "\u001B[0m";
+    private static final String ANSI_BOLD = "\u001B[1m";
+    private static final String ANSI_CYAN = "\u001B[36m";
+    // Enable colors by default; set NO_COLOR=1 in environment to disable
+    private static final boolean ENABLE_COLOR = System.getenv("NO_COLOR") == null;
+
     private final ProcessPaymentEventUseCase useCase;
     private final PaymentRepository repository;
     private final OrderRepository orderRepository;
@@ -39,6 +46,15 @@ public class StartupRunner implements ApplicationRunner {
         this.repository = repository;
         this.orderRepository = orderRepository;
         this.stockRepository = stockRepository;
+    }
+
+    // Helper to print colored scenario headings
+    private void printScenarioHeading(String heading) {
+        if (ENABLE_COLOR) {
+            System.out.println(ANSI_BOLD + ANSI_CYAN + heading + ANSI_RESET);
+        } else {
+            System.out.println(heading);
+        }
     }
 
     @Override
@@ -59,7 +75,7 @@ public class StartupRunner implements ApplicationRunner {
        SCENARIO 1 — Real concurrency (same event, 2 threads)
        ======================================================= */
     private void scenario1_concurrentSameEvent() throws Exception {
-        System.out.println("\n=== SCENARIO 1: CONCURRENT SAME EVENT ===");
+        printScenarioHeading("\n=== SCENARIO 1: CONCURRENT SAME EVENT ===");
 
         String paymentId = "payment-1";
         UUID eventId = UUID.randomUUID();
@@ -95,7 +111,7 @@ public class StartupRunner implements ApplicationRunner {
        SCENARIO 2 — Idempotency (same event replayed)
        ======================================================= */
     private void scenario2_idempotentReplay() {
-        System.out.println("=== SCENARIO 2: IDEMPOTENT REPLAY ===");
+        printScenarioHeading("=== SCENARIO 2: IDEMPOTENT REPLAY ===");
 
         String paymentId = "payment-2";
         UUID eventId = UUID.randomUUID();
@@ -111,7 +127,7 @@ public class StartupRunner implements ApplicationRunner {
        APPROVED before AUTHORIZED
        ======================================================= */
     private void scenario3_outOfOrderEvent() {
-        System.out.println("=== SCENARIO 3: OUT OF ORDER EVENT ===");
+        printScenarioHeading("=== SCENARIO 3: OUT OF ORDER EVENT ===");
 
         String paymentId = "payment-3";
 
@@ -126,7 +142,7 @@ public class StartupRunner implements ApplicationRunner {
        AUTHORIZED x FAILED
        ======================================================= */
     private void scenario4_concurrentDifferentEvents() throws Exception {
-        System.out.println("=== SCENARIO 4: CONCURRENT DIFFERENT EVENTS ===");
+        printScenarioHeading("=== SCENARIO 4: CONCURRENT DIFFERENT EVENTS ===");
 
         String paymentId = "payment-4";
 
@@ -178,7 +194,7 @@ public class StartupRunner implements ApplicationRunner {
        SCENARIO 5 — Payment then Order then Stock reservation
        ======================================================= */
     private void scenario5_paymentThenOrderThenStock() {
-        System.out.println("=== SCENARIO 5: PAYMENT -> ORDER -> STOCK ===");
+        printScenarioHeading("=== SCENARIO 5: PAYMENT -> ORDER -> STOCK ===");
 
         String paymentId = "payment-5";
         String orderId = "order-5";
@@ -216,7 +232,7 @@ public class StartupRunner implements ApplicationRunner {
        SCENARIO 6 — Reserve then cancel releases stock
        ======================================================= */
     private void scenario6_reserveThenCancelReleasesStock() {
-        System.out.println("=== SCENARIO 6: RESERVE THEN CANCEL RELEASE ===");
+        printScenarioHeading("=== SCENARIO 6: RESERVE THEN CANCEL RELEASE ===");
 
          String orderId = "order-6";
          String productId = "prod-6";
@@ -254,7 +270,7 @@ public class StartupRunner implements ApplicationRunner {
        SCENARIO 7 — Order lifecycle
        ======================================================= */
     private void scenario7_orderLifecycle() {
-        System.out.println("=== SCENARIO 7: ORDER LIFECYCLE ===");
+        printScenarioHeading("=== SCENARIO 7: ORDER LIFECYCLE ===");
 
         String orderId = "order-7";
 

@@ -1,0 +1,34 @@
+spring:
+  kafka:
+    bootstrap-servers: localhost:29092
+    consumer:
+      group-id: backend-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    listener:
+      missing-topics-fatal: false
+
+# Topics created by lib-integration infrastructure.
+# You can specify simple names or use the extended form name:partitions:replicas
+# Example: payment-events:3:1,other-topic
+integration:
+  kafka:
+    topics:
+      - payment-events:1:1
+    auto-create: true
+    # optionally restrict auto-create to certain profiles (e.g., dev)
+    auto-create-profiles: []
+
+# Optional: set logging level for Kafka listener
+logging:
+  level:
+    org.springframework.kafka: INFO
+
+# Notes:
+# - This config assumes a local Kafka broker exposed on localhost:29092 (see docker-compose.kafka.yml).
+# - To disable Kafka (e.g., when running without Docker), set spring.kafka.bootstrap-servers to an empty value
+#   or run the application with the env var NO_KAFKA=1 and adjust code to skip container wiring.

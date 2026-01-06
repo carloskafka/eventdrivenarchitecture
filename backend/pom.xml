@@ -21,9 +21,14 @@
       <artifactId>spring-boot-starter</artifactId>
     </dependency>
 
+      <!-- Kafka dependency moved to lib-integration -->
+      <!-- kept out of backend to centralize integration infra in lib-integration -->
+    <!-- kafka dependency intentionally omitted -->
+
+    <!-- Jackson for JSON parsing in Kafka listener -->
     <dependency>
-      <groupId>org.springframework.kafka</groupId>
-      <artifactId>spring-kafka</artifactId>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
     </dependency>
 
     <dependency>

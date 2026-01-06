@@ -1,11 +1,5 @@
 
-package br.com.libintegration.adapters.out;
-
-import br.com.libdomain.ports.RepositoryPort;
-import org.springframework.data.repository.CrudRepository;
-import org.springframework.stereotype.Component;
-
-import java.util.Optional;
+package br.com.libintegration.adapters.jpa;
 
 /*
 @Component

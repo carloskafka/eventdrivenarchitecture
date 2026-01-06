@@ -1,0 +1,4 @@
+br\com\libintegration\adapters\kafka\IntegrationProperties.class
+br\com\libintegration\adapters\kafka\KafkaSender.class
+br\com\libintegration\adapters\kafka\KafkaInfrastructureConfig.class
+br\com\libintegration\adapters\kafka\IntegrationConfig.class
