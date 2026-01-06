@@ -18,6 +18,8 @@ jobs:
   build:
     name: Build, Test and (on main) Publish
     runs-on: ubuntu-latest
+    env:
+      PACKAGES_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
 
     steps:
       - name: Checkout
@@ -77,28 +79,60 @@ jobs:
             echo "CENTRAL_OK=1" >> $GITHUB_ENV
           fi
 
-      - name: Create temporary Maven settings (force repo1 central)
+      - name: Diagnostic - print masked settings.xml and env values
         if: github.ref == 'refs/heads/main' && env.CENTRAL_OK == '1'
         run: |
-          mkdir -p .github/maven
-          echo '<?xml version="1.0" encoding="UTF-8"?>' > .github/maven/settings.xml
-          echo '<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">' >> .github/maven/settings.xml
-          echo '  <mirrors>' >> .github/maven/settings.xml
-          echo '    <mirror>' >> .github/maven/settings.xml
-          echo '      <id>central-repo1</id>' >> .github/maven/settings.xml
-          echo '      <name>Central repository (repo1)</name>' >> .github/maven/settings.xml
-          echo '      <url>https://repo1.maven.org/maven2/</url>' >> .github/maven/settings.xml
-          echo '      <mirrorOf>central</mirrorOf>' >> .github/maven/settings.xml
-          echo '    </mirror>' >> .github/maven/settings.xml
-          echo '  </mirrors>' >> .github/maven/settings.xml
-          echo '</settings>' >> .github/maven/settings.xml
+          echo "Masked settings.xml:"
+          sed 's/<password>.*<\/password>/<password>***MASKED***<\/password>/' .github/maven/settings.xml || echo "No settings.xml found"
+          echo "GITHUB_ACTOR: $GITHUB_ACTOR"
+          echo "GITHUB_REPOSITORY: $GITHUB_REPOSITORY"
+          echo "PACKAGES_TOKEN length: ${#PACKAGES_TOKEN}"
+          echo "MAVEN_OPTS: $MAVEN_OPTS"
+
+      - name: GitHub Packages auth check (diagnostic)
+        if: github.ref == 'refs/heads/main' && env.CENTRAL_OK == '1'
+        run: |
+          owner=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f1)
+          meta_url="https://maven.pkg.github.com/$GITHUB_REPOSITORY/com/example/eventdrivenarchitecture/1.0.0-SNAPSHOT/maven-metadata.xml"
+          hdr=$(mktemp)
+          body=$(mktemp)
+          echo "Checking auth to $meta_url as user $owner"
+          http=$(curl -s -D "$hdr" -o "$body" -u "$owner:$PACKAGES_TOKEN" "$meta_url" -w "%{http_code}")
+          echo "HTTP status: $http"
+          echo "--- Response headers ---"
+          sed -n '1,200p' "$hdr"
+          echo "--- Response body (first 400 chars) ---"
+          head -c 400 "$body" | sed -n '1,200p'
+          if [ "$http" != "200" ]; then
+            echo "Authentication to GitHub Packages failed (HTTP $http). If 401/403, verify PACKAGES_TOKEN scopes (repo/packages) and SAML SSO authorization.";
+            exit 1
+          fi
+
+      - name: Write Maven settings with GitHub Packages credentials
+        if: github.ref == 'refs/heads/main' && env.CENTRAL_OK == '1'
+        run: |
+          mkdir -p "$HOME/.m2"
+          owner=$(echo "$GITHUB_REPOSITORY" | cut -d'/' -f1)
+          cat > "$HOME/.m2/settings.xml" <<EOF
+          <settings>
+            <servers>
+              <server>
+                <id>github</id>
+                <username>${owner}</username>
+                <password>${PACKAGES_TOKEN}</password>
+              </server>
+            </servers>
+          </settings>
+          EOF
+          echo "Wrote settings.xml to $HOME/.m2/settings.xml (password masked in logs); username set to repo owner: $owner"
+
       - name: Deploy artifacts to GitHub Packages (from build)
         if: github.ref == 'refs/heads/main' && env.CENTRAL_OK == '1'
         env:
           MAVEN_OPTS: -Xmx2g
         run: |
           echo "Deploying to GitHub Packages using altDeploymentRepository (from build job)"
-          mvn -s .github/maven/settings.xml -B -ntp -T 1C clean deploy -DskipTests -Dgpg.skip=true -DaltDeploymentRepository=github::default::https://maven.pkg.github.com/$GITHUB_REPOSITORY -e -X
+          mvn -B -ntp -T 1C clean deploy -DskipTests -Dgpg.skip=true -DaltDeploymentRepository=github::default::https://maven.pkg.github.com/$GITHUB_REPOSITORY -e -X
 
       - name: Skip deploy notice
         if: github.ref == 'refs/heads/main' && env.CENTRAL_OK != '1'
