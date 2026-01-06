@@ -84,12 +84,17 @@ jobs:
         run: |
           echo "Validating deploy token has API access..."
           hdr_file=$(mktemp)
-          http=$(curl -s -D "$hdr_file" -o /dev/null -H "Authorization: token $DEPLOY_TOKEN" https://api.github.com/user -w "%{http_code}")
+          body_file=$(mktemp)
+          http=$(curl -s -D "$hdr_file" -o "$body_file" -H "Authorization: token $DEPLOY_TOKEN" https://api.github.com/user -w "%{http_code}")
           echo "HTTP status: $http"
           echo "--- Response headers ---"
           sed -n '1,200p' "$hdr_file"
           echo "--- X-Oauth-Scopes header ---"
           grep -i '^X-Oauth-Scopes:' "$hdr_file" || echo "(no X-Oauth-Scopes header present)"
+          echo "--- X-GitHub-SSO header ---"
+          grep -i '^X-GitHub-SSO:' "$hdr_file" || echo "(no X-GitHub-SSO header present)"
+          echo "--- Response body ---"
+          sed -n '1,400p' "$body_file"
           if [ "$http" != "200" ]; then
             echo "Deploy token validation failed (HTTP $http). Make sure PACKAGES_TOKEN is set (PAT with repo/packages) or GITHUB_TOKEN has packages write permissions.";
             echo "If you're running from a fork, GITHUB_TOKEN may not have needed permissions. Add a PAT as PACKAGES_TOKEN in repository secrets.";
