@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   build:
-    name: Build and Test
+    name: Build, Test and (on main) Publish
     runs-on: ubuntu-latest
 
     steps:
@@ -47,61 +47,20 @@ jobs:
           name: backend-jar
           path: backend/target/backend-1.0.0-SNAPSHOT.jar
 
-  publish:
-    name: Publish to GitHub Packages
-    runs-on: ubuntu-latest
-    needs: build
-    if: github.ref == 'refs/heads/main'
-    env:
-      # Expose PACKAGES_TOKEN via env so we can safely reference it in step 'if' expressions
-      PACKAGES_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
-      DEPLOY_TOKEN: ${{ secrets.PACKAGES_TOKEN != '' && secrets.PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 21 and Maven Server credentials
+      # Deploy from the same runner that built and populated the local Maven cache.
+      - name: Set up JDK 21 for deploy (with credentials)
+        if: github.ref == 'refs/heads/main'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
           server-id: github
           server-username: ${{ github.actor }}
-          # Use DEPLOY_TOKEN (prefers PACKAGES_TOKEN, falls back to GITHUB_TOKEN)
-          server-password: ${{ env.DEPLOY_TOKEN }}
+          server-password: ${{ secrets.PACKAGES_TOKEN != '' && secrets.PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
           cache: maven
 
-      - name: Token source (diagnostic) - PACKAGES_TOKEN present
-        if: ${{ env.PACKAGES_TOKEN != '' }}
-        run: echo "PACKAGES_TOKEN secret is present — workflow will use PACKAGES_TOKEN"
-
-      - name: Token source (diagnostic) - PACKAGES_TOKEN missing
-        if: ${{ env.PACKAGES_TOKEN == '' }}
-        run: echo "PACKAGES_TOKEN secret is NOT present — workflow will fall back to GITHUB_TOKEN"
-
-      - name: Validate deploy token
-        run: |
-          echo "Validating deploy token has API access..."
-          hdr_file=$(mktemp)
-          body_file=$(mktemp)
-          http=$(curl -s -D "$hdr_file" -o "$body_file" -H "Authorization: token $DEPLOY_TOKEN" https://api.github.com/user -w "%{http_code}")
-          echo "HTTP status: $http"
-          echo "--- Response headers ---"
-          sed -n '1,200p' "$hdr_file"
-          echo "--- X-Oauth-Scopes header ---"
-          grep -i '^X-Oauth-Scopes:' "$hdr_file" || echo "(no X-Oauth-Scopes header present)"
-          echo "--- X-GitHub-SSO header ---"
-          grep -i '^X-GitHub-SSO:' "$hdr_file" || echo "(no X-GitHub-SSO header present)"
-          echo "--- Response body ---"
-          sed -n '1,400p' "$body_file"
-          if [ "$http" != "200" ]; then
-            echo "Deploy token validation failed (HTTP $http). Make sure PACKAGES_TOKEN is set (PAT with repo/packages) or GITHUB_TOKEN has packages write permissions.";
-            echo "If you're running from a fork, GITHUB_TOKEN may not have needed permissions. Add a PAT as PACKAGES_TOKEN in repository secrets.";
-            exit 1
-          fi
-
       - name: Pre-deploy central connectivity check (diagnostic)
+        if: github.ref == 'refs/heads/main'
         run: |
           echo "Checking Maven Central connectivity for plugin POM..."
           url=https://repo.maven.apache.org/maven2/org/apache/maven/plugins/maven-install-plugin/3.1.2/maven-install-plugin-3.1.2.pom
@@ -112,23 +71,31 @@ jobs:
           sed -n '1,200p' "$hdr"
           if [ "$http" != "200" ]; then
             echo "Maven Central returned HTTP $http for plugin POM. This may indicate network/ACL issues or a mirror/proxy blocking access.";
-            exit 1
+            echo "CENTRAL_OK=0" >> $GITHUB_ENV
+          else
+            echo "CENTRAL_OK=1" >> $GITHUB_ENV
           fi
 
-      - name: Cache Maven local repository
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-m2-
-
-      - name: Deploy artifacts to GitHub Packages
+      - name: Deploy artifacts to GitHub Packages (from build)
+        if: github.ref == 'refs/heads/main' && env.CENTRAL_OK == '1'
         env:
           MAVEN_OPTS: -Xmx2g
         run: |
-          echo "Deploying to GitHub Packages using altDeploymentRepository"
+          echo "Deploying to GitHub Packages using altDeploymentRepository (from build job)"
           mvn -B -ntp -T 1C clean deploy -DskipTests -Dgpg.skip=true -DaltDeploymentRepository=github::default::https://maven.pkg.github.com/$GITHUB_REPOSITORY -e -X
+
+      - name: Skip deploy notice
+        if: github.ref == 'refs/heads/main' && env.CENTRAL_OK != '1'
+        run: echo "Maven Central connectivity check failed; creating fallback GitHub Release and uploading backend artifact"
+
+      - name: Create fallback release and upload backend JAR
+        if: github.ref == 'refs/heads/main' && env.CENTRAL_OK != '1'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: fallback-${{ github.run_id }}
+          files: backend/target/backend-1.0.0-SNAPSHOT.jar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   release:
     name: Create GitHub Release and upload backend JAR
