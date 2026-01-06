@@ -52,6 +52,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     if: github.ref == 'refs/heads/main'
+    env:
+      DEPLOY_TOKEN: ${{ secrets.PACKAGES_TOKEN != '' && secrets.PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Checkout
@@ -64,10 +66,19 @@ jobs:
           java-version: '21'
           server-id: github
           server-username: ${{ github.actor }}
-          # Prefer a personal access token stored in PACKAGES_TOKEN (recommended).
-          # Falls back to the automatically provided GITHUB_TOKEN if PACKAGES_TOKEN is not set.
-          server-password: ${{ secrets.PACKAGES_TOKEN != '' && secrets.PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
+          # Use DEPLOY_TOKEN (prefers PACKAGES_TOKEN, falls back to GITHUB_TOKEN)
+          server-password: ${{ env.DEPLOY_TOKEN }}
           cache: maven
+
+      - name: Validate deploy token
+        run: |
+          echo "Validating deploy token has API access..."
+          status=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $DEPLOY_TOKEN" https://api.github.com/user)
+          if [ "$status" != "200" ]; then
+            echo "Deploy token validation failed (HTTP $status). Make sure PACKAGES_TOKEN is set (PAT with repo/packages) or GITHUB_TOKEN has packages write permissions.";
+            echo "If you're running from a fork, GITHUB_TOKEN may not have needed permissions. Add a PAT as PACKAGES_TOKEN in repository secrets.";
+            exit 1
+          fi
 
       - name: Cache Maven local repository
         uses: actions/cache@v4
