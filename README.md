@@ -13,6 +13,7 @@ The modules are organized as internal libraries that can be split into independe
 Table of Contents
 
 - Overview
+- System Design
 - Modules and responsibilities
 - How to build
 - How to run (development / production)
@@ -23,6 +24,162 @@ Table of Contents
 Overview
 
 This repository is an educational example of structuring an event-driven application into separate modules. The intent is to keep domain contracts and models (`lib-domain`) decoupled from infrastructure and routing implementations so each piece can evolve independently.
+
+System Design
+
+C4 – Level 1: System Context
+```mermaid
+C4Context
+title System Context — Event Driven Architecture Demo
+
+Person(dev, "Developer", "Executa e analisa os cenários de eventos" )
+
+System(eventSystem, "Event Driven Backend",
+  "Aplicação Spring Boot que processa eventos de forma idempotente e concorrente" )
+
+Rel(dev, eventSystem, "Executa / observa cenários de eventos")
+```
+C4 – Level 2: Container Diagram
+```mermaid
+C4Container
+title Container Diagram — Event Driven Architecture
+
+Person(dev, "Developer")
+
+System(system, "Event Driven Backend",
+  "Spring Boot application for event-driven processing")
+
+Container(backend, "backend",
+  "Spring Boot",
+  "Aplicação principal que executa cenários e orquestra eventos")
+
+Container(libDomain, "lib-domain",
+  "Java Library",
+  "Modelos de domínio, eventos e contratos")
+
+Container(libRouter, "lib-router",
+  "Java Library",
+  "Roteamento e seleção de estratégias de eventos")
+
+Container(libIntegration, "lib-integration",
+  "Java Library",
+  "Infraestrutura e persistência")
+
+Rel(dev, system, "Executa")
+
+Rel(system, backend, "Runs")
+Rel(system, libDomain, "Includes")
+Rel(system, libRouter, "Includes")
+Rel(system, libIntegration, "Includes")
+
+Rel(backend, libDomain, "Usa")
+Rel(backend, libRouter, "Usa")
+Rel(backend, libIntegration, "Usa")
+
+Rel(libRouter, libDomain, "Depende de")
+Rel(libIntegration, libDomain, "Depende de")
+```
+C4 – Level 3: Component Diagram (Backend + Libs)
+```mermaid
+C4Component
+title Component Diagram — Event Processing Flow
+
+System(system, "Event Driven Backend")
+
+Container(backend, "backend",
+  "Spring Boot Application")
+
+Container(libRouter, "lib-router",
+  "Routing Library")
+
+Container(libDomain, "lib-domain",
+  "Domain Library")
+
+Container(libIntegration, "lib-integration",
+  "Integration Library")
+
+Component(startupRunner, "StartupRunner",
+  "Adapter In",
+  "Dispara cenários de eventos no startup")
+
+Component(processUseCase, "ProcessPaymentEventUseCase",
+  "Use Case",
+  "Processa eventos de pagamento de forma idempotente")
+
+Component(eventRouter, "EventRouter",
+  "Router",
+  "Encaminha eventos para estratégias")
+
+Component(strategySelector, "DefaultStrategySelector",
+  "Selector",
+  "Seleciona EventStrategy compatível")
+
+Component(event, "Event",
+  "Domain Model",
+  "Evento imutável")
+
+Component(eventStrategy, "EventStrategy",
+  "Strategy Contract",
+  "Contrato de processamento de eventos")
+
+Component(paymentRepo, "PaymentRepositoryInMemory",
+  "Repository",
+  "Persistência em memória com versionamento otimista")
+
+Rel(system, backend, "Hosts")
+Rel(system, libRouter, "Hosts")
+Rel(system, libDomain, "Hosts")
+Rel(system, libIntegration, "Hosts")
+
+Rel(backend, startupRunner, "Contains")
+Rel(backend, processUseCase, "Contains")
+
+Rel(processUseCase, eventRouter, "Roteia")
+Rel(eventRouter, strategySelector, "Seleciona")
+Rel(strategySelector, eventStrategy, "Resolve")
+
+Rel(processUseCase, paymentRepo, "Persiste estado")
+
+Rel(libDomain, event, "Define")
+Rel(libDomain, eventStrategy, "Define")
+
+Rel(libRouter, eventRouter, "Fornece")
+Rel(libIntegration, paymentRepo, "Fornece")
+
+```
+C4 – Level 4: Code / Class Diagram
+```mermaid
+classDiagram
+    class Event {
+        UUID id
+        String type
+        Object payload
+    }
+
+    class EventStrategy {
+        <<interface>>
+        supports(Event)
+        process(Event)
+    }
+
+    class EventRouter {
+        route(Event)
+    }
+
+    class StrategySelector {
+        <<interface>>
+        select(Event)
+    }
+
+    class DefaultStrategySelector {
+        select(Event)
+    }
+
+    class ProcessPaymentEventUseCas
+
+
+```
+
 
 Modules
 
