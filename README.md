@@ -29,122 +29,78 @@ System Design
 
 C4 – Level 1: System Context
 ```mermaid
-C4Context
-title System Context — Event Driven Architecture Demo
+flowchart LR
+    Dev[Developer]
 
-Person(dev, "Developer", "Executa e analisa os cenários de eventos" )
+    System[Event Driven Backend<br/>Spring Boot System]
 
-System(eventSystem, "Event Driven Backend",
-  "Aplicação Spring Boot que processa eventos de forma idempotente e concorrente" )
+    Dev -->|Executa| System
 
-Rel(dev, eventSystem, "Executa / observa cenários de eventos")
 ```
 C4 – Level 2: Container Diagram
 ```mermaid
-C4Container
-title Container Diagram — Event Driven Architecture
+flowchart LR
+    Dev[Developer]
 
-Person(dev, "Developer")
+    System[Event Driven Backend<br/>Spring Boot System]
 
-System(system, "Event Driven Backend",
-  "Spring Boot application for event-driven processing")
+    Backend[backend<br/>Spring Boot Application]
 
-Container(backend, "backend",
-  "Spring Boot",
-  "Aplicação principal que executa cenários e orquestra eventos")
+    LibDomain[lib-domain<br/>Domain Models & Events]
+    LibRouter[lib-router<br/>Event Routing]
+    LibIntegration[lib-integration<br/>Persistence & Infra]
 
-Container(libDomain, "lib-domain",
-  "Java Library",
-  "Modelos de domínio, eventos e contratos")
+    Dev -->|Executa| System
+    System -->|Runs| Backend
 
-Container(libRouter, "lib-router",
-  "Java Library",
-  "Roteamento e seleção de estratégias de eventos")
+    Backend -->|Usa| LibDomain
+    Backend -->|Usa| LibRouter
+    Backend -->|Usa| LibIntegration
 
-Container(libIntegration, "lib-integration",
-  "Java Library",
-  "Infraestrutura e persistência")
+    LibRouter -->|Depende de| LibDomain
+    LibIntegration -->|Depende de| LibDomain
 
-Rel(dev, system, "Executa")
-
-Rel(system, backend, "Runs")
-Rel(system, libDomain, "Includes")
-Rel(system, libRouter, "Includes")
-Rel(system, libIntegration, "Includes")
-
-Rel(backend, libDomain, "Usa")
-Rel(backend, libRouter, "Usa")
-Rel(backend, libIntegration, "Usa")
-
-Rel(libRouter, libDomain, "Depende de")
-Rel(libIntegration, libDomain, "Depende de")
 ```
 C4 – Level 3: Component Diagram (Backend + Libs)
 ```mermaid
-C4Component
-title Component Diagram — Event Processing Flow
+flowchart TD
+    %% Containers
+    Backend[backend<br/>Spring Boot Application]
+    LibDomain[lib-domain]
+    LibRouter[lib-router]
+    LibIntegration[lib-integration]
 
-System(system, "Event Driven Backend")
+    %% Components
+    StartupRunner[StartupRunner<br/>Adapter In]
+    UseCase[ProcessPaymentEventUseCase<br/>Use Case]
 
-Container(backend, "backend",
-  "Spring Boot Application")
+    EventRouter[EventRouter<br/>Router]
+    StrategySelector[DefaultStrategySelector<br/>Selector]
+    EventStrategy[EventStrategy<br/>Strategy Contract]
 
-Container(libRouter, "lib-router",
-  "Routing Library")
+    Event[Event<br/>Domain Model]
+    PaymentRepo[PaymentRepositoryInMemory<br/>Repository]
 
-Container(libDomain, "lib-domain",
-  "Domain Library")
+    %% Backend composition
+    Backend --> StartupRunner
+    Backend --> UseCase
 
-Container(libIntegration, "lib-integration",
-  "Integration Library")
+    %% Flow
+    StartupRunner -->|Dispara| UseCase
+    UseCase -->|Roteia| EventRouter
+    EventRouter -->|Seleciona| StrategySelector
+    StrategySelector -->|Resolve| EventStrategy
 
-Component(startupRunner, "StartupRunner",
-  "Adapter In",
-  "Dispara cenários de eventos no startup")
+    %% Persistence
+    UseCase -->|Persiste estado| PaymentRepo
 
-Component(processUseCase, "ProcessPaymentEventUseCase",
-  "Use Case",
-  "Processa eventos de pagamento de forma idempotente")
+    %% Lib responsibilities
+    LibDomain -->|Define| Event
+    LibDomain -->|Define| EventStrategy
 
-Component(eventRouter, "EventRouter",
-  "Router",
-  "Encaminha eventos para estratégias")
+    LibRouter -->|Fornece| EventRouter
+    LibIntegration -->|Fornece| PaymentRepo
 
-Component(strategySelector, "DefaultStrategySelector",
-  "Selector",
-  "Seleciona EventStrategy compatível")
-
-Component(event, "Event",
-  "Domain Model",
-  "Evento imutável")
-
-Component(eventStrategy, "EventStrategy",
-  "Strategy Contract",
-  "Contrato de processamento de eventos")
-
-Component(paymentRepo, "PaymentRepositoryInMemory",
-  "Repository",
-  "Persistência em memória com versionamento otimista")
-
-Rel(system, backend, "Hosts")
-Rel(system, libRouter, "Hosts")
-Rel(system, libDomain, "Hosts")
-Rel(system, libIntegration, "Hosts")
-
-Rel(backend, startupRunner, "Contains")
-Rel(backend, processUseCase, "Contains")
-
-Rel(processUseCase, eventRouter, "Roteia")
-Rel(eventRouter, strategySelector, "Seleciona")
-Rel(strategySelector, eventStrategy, "Resolve")
-
-Rel(processUseCase, paymentRepo, "Persiste estado")
-
-Rel(libDomain, event, "Define")
-Rel(libDomain, eventStrategy, "Define")
-
-Rel(libRouter, eventRouter, "Fornece")
-Rel(libIntegration, paymentRepo, "Fornece")
 
 ```
 C4 – Level 4: Code / Class Diagram
