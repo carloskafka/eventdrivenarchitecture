@@ -84,7 +84,7 @@ jobs:
         run: |
           echo "Validating deploy token has API access..."
           hdr_file=$(mktemp)
-          http=$(curl -s -D "$hdr_file" -o /dev/null -H "Authorization: Bearer $DEPLOY_TOKEN" https://api.github.com/user -w "%{http_code}")
+          http=$(curl -s -D "$hdr_file" -o /dev/null -H "Authorization: token $DEPLOY_TOKEN" https://api.github.com/user -w "%{http_code}")
           echo "HTTP status: $http"
           echo "--- Response headers ---"
           sed -n '1,200p' "$hdr_file"
