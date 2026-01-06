@@ -81,22 +81,28 @@ jobs:
         if: github.ref == 'refs/heads/main' && env.CENTRAL_OK == '1'
         run: |
           mkdir -p .github/maven
-          cat > .github/maven/settings.xml <<'XML'
-<?xml version="1.0" encoding="UTF-8"?>
-<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
-          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
-  <mirrors>
-    <mirror>
-      <id>central-repo1</id>
-      <name>Central repository (repo1)</name>
-      <url>https://repo1.maven.org/maven2/</url>
-      <mirrorOf>central</mirrorOf>
-    </mirror>
-  </mirrors>
-</settings>
-XML
-
+          printf '%s
+          %s
+          %s
+          %s
+          %s
+          %s
+          %s
+          %s
+          %s
+          %s
+          ' \
+                      '<?xml version="1.0" encoding="UTF-8"?>' \
+                      '<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">' \
+                      '  <mirrors>' \
+                      '    <mirror>' \
+                      '      <id>central-repo1</id>' \
+                      '      <name>Central repository (repo1)</name>' \
+                      '      <url>https://repo1.maven.org/maven2/</url>' \
+                      '      <mirrorOf>central</mirrorOf>' \
+                      '    </mirror>' \
+                      '  </mirrors>' \
+                      '</settings>' > .github/maven/settings.xml
       - name: Deploy artifacts to GitHub Packages (from build)
         if: github.ref == 'refs/heads/main' && env.CENTRAL_OK == '1'
         env:
