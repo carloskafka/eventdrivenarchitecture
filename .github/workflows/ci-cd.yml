@@ -70,13 +70,13 @@ jobs:
           server-password: ${{ env.DEPLOY_TOKEN }}
           cache: maven
 
-      - name: Token source (diagnostic)
-        run: |
-          if [ "${{ secrets.PACKAGES_TOKEN }}" != "" ]; then
-            echo "PACKAGES_TOKEN secret is present — workflow will use PACKAGES_TOKEN";
-          else
-            echo "PACKAGES_TOKEN secret is NOT present — workflow will fall back to GITHUB_TOKEN";
-          fi
+      - name: Token source (diagnostic) - PACKAGES_TOKEN present
+        if: ${{ secrets.PACKAGES_TOKEN != '' }}
+        run: echo "PACKAGES_TOKEN secret is present — workflow will use PACKAGES_TOKEN"
+
+      - name: Token source (diagnostic) - PACKAGES_TOKEN missing
+        if: ${{ secrets.PACKAGES_TOKEN == '' }}
+        run: echo "PACKAGES_TOKEN secret is NOT present — workflow will fall back to GITHUB_TOKEN"
 
       - name: Validate deploy token
         run: |
