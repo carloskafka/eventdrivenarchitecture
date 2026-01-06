@@ -1,0 +1,33 @@
+name: Maven Build and Upload Artifacts
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build with Maven
+        run: mvn --batch-mode verify
+
+      - name: Create Staging Directory
+        run: mkdir staging
+
+      - name: Copy Artifacts to Staging
+        run: find . -name "*.jar" -exec cp {} staging/ \;
+        # Adjust file pattern (*.jar, *.war, etc.) as needed for your project modules.
+
+      - name: Upload project artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: multi-module-artifacts
+          path: staging/
+          # The path points to the staging directory containing all desired artifacts.

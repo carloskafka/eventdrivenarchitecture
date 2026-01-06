@@ -54,4 +54,13 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
+
+  <distributionManagement>
+    <repository>
+      <id>github</id>
+      <name>GitHub Packages</name>
+      <url>maven.pkg.github.com</url>
+    </repository>
+  </distributionManagement>
+
 </project>
