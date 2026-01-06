@@ -101,6 +101,20 @@ jobs:
             exit 1
           fi
 
+      - name: Pre-deploy central connectivity check (diagnostic)
+        run: |
+          echo "Checking Maven Central connectivity for plugin POM..."
+          url=https://repo.maven.apache.org/maven2/org/apache/maven/plugins/maven-install-plugin/3.1.2/maven-install-plugin-3.1.2.pom
+          hdr=$(mktemp)
+          http=$(curl -s -D "$hdr" -o /dev/null -w "%{http_code}" "$url")
+          echo "HTTP status for $url : $http"
+          echo "--- Response headers ---"
+          sed -n '1,200p' "$hdr"
+          if [ "$http" != "200" ]; then
+            echo "Maven Central returned HTTP $http for plugin POM. This may indicate network/ACL issues or a mirror/proxy blocking access.";
+            exit 1
+          fi
+
       - name: Cache Maven local repository
         uses: actions/cache@v4
         with:
@@ -114,7 +128,7 @@ jobs:
           MAVEN_OPTS: -Xmx2g
         run: |
           echo "Deploying to GitHub Packages using altDeploymentRepository"
-          mvn -B -ntp -T 1C clean deploy -DskipTests -Dgpg.skip=true -DaltDeploymentRepository=github::default::https://maven.pkg.github.com/$GITHUB_REPOSITORY
+          mvn -B -ntp -T 1C clean deploy -DskipTests -Dgpg.skip=true -DaltDeploymentRepository=github::default::https://maven.pkg.github.com/$GITHUB_REPOSITORY -e -X
 
   release:
     name: Create GitHub Release and upload backend JAR
