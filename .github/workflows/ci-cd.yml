@@ -53,6 +53,8 @@ jobs:
     needs: build
     if: github.ref == 'refs/heads/main'
     env:
+      # Expose PACKAGES_TOKEN via env so we can safely reference it in step 'if' expressions
+      PACKAGES_TOKEN: ${{ secrets.PACKAGES_TOKEN }}
       DEPLOY_TOKEN: ${{ secrets.PACKAGES_TOKEN != '' && secrets.PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
 
     steps:
@@ -71,11 +73,11 @@ jobs:
           cache: maven
 
       - name: Token source (diagnostic) - PACKAGES_TOKEN present
-        if: ${{ secrets.PACKAGES_TOKEN != '' }}
+        if: ${{ env.PACKAGES_TOKEN != '' }}
         run: echo "PACKAGES_TOKEN secret is present — workflow will use PACKAGES_TOKEN"
 
       - name: Token source (diagnostic) - PACKAGES_TOKEN missing
-        if: ${{ secrets.PACKAGES_TOKEN == '' }}
+        if: ${{ env.PACKAGES_TOKEN == '' }}
         run: echo "PACKAGES_TOKEN secret is NOT present — workflow will fall back to GITHUB_TOKEN"
 
       - name: Validate deploy token
