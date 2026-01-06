@@ -9,7 +9,8 @@ on:
     branches: [ "main" ]
 
 permissions:
-  contents: read
+  # Need write access to repository contents in order to create releases and upload assets
+  contents: write
   packages: write
   id-token: write
 
@@ -62,8 +63,8 @@ jobs:
       - name: Pre-deploy central connectivity check (diagnostic)
         if: github.ref == 'refs/heads/main'
         run: |
-          echo "Checking Maven Central connectivity for plugin POM..."
-          url=https://repo.maven.apache.org/maven2/org/apache/maven/plugins/maven-install-plugin/3.1.2/maven-install-plugin-3.1.2.pom
+          echo "Checking Maven Central connectivity for plugin POM (repo1.maven.org)..."
+          url=https://repo1.maven.org/maven2/org/apache/maven/plugins/maven-install-plugin/3.1.2/maven-install-plugin-3.1.2.pom
           hdr=$(mktemp)
           http=$(curl -s -D "$hdr" -o /dev/null -w "%{http_code}" "$url")
           echo "HTTP status for $url : $http"
@@ -76,13 +77,33 @@ jobs:
             echo "CENTRAL_OK=1" >> $GITHUB_ENV
           fi
 
+      - name: Create temporary Maven settings (force repo1 central)
+        if: github.ref == 'refs/heads/main' && env.CENTRAL_OK == '1'
+        run: |
+          mkdir -p .github/maven
+          cat > .github/maven/settings.xml <<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
+  <mirrors>
+    <mirror>
+      <id>central-repo1</id>
+      <name>Central repository (repo1)</name>
+      <url>https://repo1.maven.org/maven2/</url>
+      <mirrorOf>central</mirrorOf>
+    </mirror>
+  </mirrors>
+</settings>
+XML
+
       - name: Deploy artifacts to GitHub Packages (from build)
         if: github.ref == 'refs/heads/main' && env.CENTRAL_OK == '1'
         env:
           MAVEN_OPTS: -Xmx2g
         run: |
           echo "Deploying to GitHub Packages using altDeploymentRepository (from build job)"
-          mvn -B -ntp -T 1C clean deploy -DskipTests -Dgpg.skip=true -DaltDeploymentRepository=github::default::https://maven.pkg.github.com/$GITHUB_REPOSITORY -e -X
+          mvn -s .github/maven/settings.xml -B -ntp -T 1C clean deploy -DskipTests -Dgpg.skip=true -DaltDeploymentRepository=github::default::https://maven.pkg.github.com/$GITHUB_REPOSITORY -e -X
 
       - name: Skip deploy notice
         if: github.ref == 'refs/heads/main' && env.CENTRAL_OK != '1'
@@ -95,7 +116,8 @@ jobs:
           tag_name: fallback-${{ github.run_id }}
           files: backend/target/backend-1.0.0-SNAPSHOT.jar
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Prefer a PAT for creating releases if available; fall back to GITHUB_TOKEN
+          GITHUB_TOKEN: ${{ secrets.PACKAGES_TOKEN != '' && secrets.PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
 
   release:
     name: Create GitHub Release and upload backend JAR
@@ -123,7 +145,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PACKAGES_TOKEN != '' && secrets.PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Upload backend JAR to release
         uses: softprops/action-gh-release@v1
@@ -131,4 +153,4 @@ jobs:
           tag_name: ${{ github.ref_name }}
           files: backend/target/backend-1.0.0-SNAPSHOT.jar
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PACKAGES_TOKEN != '' && secrets.PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
