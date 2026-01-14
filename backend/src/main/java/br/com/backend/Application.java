@@ -9,9 +9,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * It scans multiple base packages to include components from different modules.
  */
 @SpringBootApplication(scanBasePackages = {
-        "br.com.backend",
-        "br.com.libintegration",
-        "br.com.libdomain.strategy"
+        "br.com.backend"
 })
 public class Application {
     public static void main(String[] args) {

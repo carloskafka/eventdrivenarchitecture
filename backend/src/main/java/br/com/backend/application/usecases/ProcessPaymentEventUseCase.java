@@ -1,62 +1,53 @@
 package br.com.backend.application.usecases;
 
-import br.com.backend.adapters.out.PaymentRepository;
-import br.com.backend.model.payment.Payment;
-import br.com.backend.model.payment.PaymentStatus;
+import br.com.backend.application.ports.out.DomainEventPublisher;
+import br.com.backend.application.ports.out.PaymentRepository;
+import br.com.backend.domain.payment.Payment;
+import br.com.backend.infrastructure.messaging.PaymentEvent;
 import org.springframework.stereotype.Component;
 
-import java.util.UUID;
-import jakarta.persistence.OptimisticLockException;
-
-/**
- * Use case for processing payment events in an idempotent manner.
- * It ensures that the same event is not applied multiple times to a payment.
- */
 @Component
 public class ProcessPaymentEventUseCase {
 
-    private final PaymentRepository repository;
+    private final PaymentRepository paymentRepository;
+    private final DomainEventPublisher publisher;
 
-    public ProcessPaymentEventUseCase(PaymentRepository repository) {
-        this.repository = repository;
+    public ProcessPaymentEventUseCase(
+            PaymentRepository paymentRepository,
+            DomainEventPublisher publisher
+    ) {
+        this.paymentRepository = paymentRepository;
+        this.publisher = publisher;
     }
 
-    public void execute(UUID eventId, String paymentId, PaymentStatus targetStatus) {
+    public void execute(PaymentEvent event) {
+        System.out.println("[UseCase] Processando evento " + event.eventId() +
+                " status " + event.targetStatus() + " para payment " + event.paymentId());
 
-        Payment payment = repository.findById(paymentId)
-                .orElseGet(() -> new Payment(
-                        paymentId,
-                        PaymentStatus.CREATED
-                ));
+        Payment payment = paymentRepository
+                .findById(event.paymentId())
+                .orElseGet(() -> Payment.newPayment(event.paymentId(), event.orderId()));
 
-        boolean applied = payment.applyEvent(eventId, targetStatus);
+        boolean changed = payment.applyEvent(event.eventId(), event.targetStatus(), event.occurredAt());
 
-        if (!applied) {
-            System.out.println(Thread.currentThread().getName() + " NO-OP (IDEMPOTENT)");
+        if (!changed) {
+            if (payment.isPending(event.eventId())) {
+                System.out.println("[UseCase] Evento " + event.eventId() + " armazenado como pendente (fora de ordem)");
+            } else {
+                System.out.println("[UseCase] Evento " + event.eventId() + " ignorado (idempotente)");
+            }
             return;
         }
 
-        try {
-            repository.save(payment);
-        } catch (RuntimeException e) {
-            // Map repository-specific optimistic lock exceptions to Jakarta's OptimisticLockException
-            if (isOptimisticLockException(e)) {
-                throw new OptimisticLockException(e.getMessage());
-            }
-            throw e;
-        }
-    }
+        paymentRepository.save(payment);
+        System.out.println("[UseCase] Estado atualizado para payment " + payment.getPaymentId() +
+                ": " + payment.getStatus());
 
-    private boolean isOptimisticLockException(Throwable t) {
-        Throwable cur = t;
-        while (cur != null) {
-            String name = cur.getClass().getName();
-            if (name.contains("OptimisticLock") || name.contains("OptimisticLockingFailureException")) {
-                return true;
-            }
-            cur = cur.getCause();
-        }
-        return false;
+        // publicar DomainEvents
+        payment.pullDomainEvents().forEach(de -> {
+            System.out.println("[UseCase] Publicando DomainEvent: " + de.getClass().getSimpleName());
+            publisher.publish(de);
+        });
     }
 
 }

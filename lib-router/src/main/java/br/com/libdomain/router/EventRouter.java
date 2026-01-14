@@ -18,16 +18,12 @@ public class EventRouter {
         this.selector = selector;
     }
 
-    public void route(List<Event> events) {
-        events.forEach(this::route);
-    }
-
     public void route(Event event) {
         List<EventStrategy> strategies = selector.selectAll(event);
 
         if (strategies.isEmpty()) {
             throw new IllegalStateException(
-                    "No strategies found for event type=" + event.type()
+                    "No strategies found for event type=" + event.getType()
             );
         }
 
