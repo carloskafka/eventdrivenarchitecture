@@ -7,11 +7,11 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 @Component
-public class PaymentProcessManager {
+public class OrderProcessManager {
 
     private final OrderRepository orderRepository;
 
-    public PaymentProcessManager(OrderRepository orderRepository) {
+    public OrderProcessManager(OrderRepository orderRepository) {
         this.orderRepository = orderRepository;
     }
 
